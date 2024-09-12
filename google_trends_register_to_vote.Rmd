@@ -1,0 +1,97 @@
+---
+title: "Analyzing Google Trends Data for the 2024 Election: Tracking 'Register to Vote' Searches"
+author: "'Jimmy' Zhenning Xu"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+ 
+
+As we approach the 2024 U.S. Presidential Election, voter registration efforts are gaining momentum. On Sep 10, 2024, Taylor Swift shared a trending post that attracted millions of likes and retweets on X.com. Did Taylor Swift’s endorsement of Kamala Harris spark a rise in 'register to vote' searches in key swing regions? Inspired by a trending question from digital marketing guru Rand Fishkin on LinkedIn, I made a #GoogleTrends map to figure it out. See his original LinkedIn post here: https://www.linkedin.com/feed/update/urn:li:activity:7239770824650448896/.
+
+In this post, we'll walk through a way to visualize search trends for this key term using R, leveraging Google Trends data to create a map that shows interest by state.
+
+The interactive map (see the end of the post) is made using R (or #Rstudio) and a few other R packages. You can zoom in or zoom out to see the details. 
+
+## Step-by-Step Guide
+
+To begin, we'll use the `gtrendsR` package to gather Google Trends data for the search term "register to vote" and map it to U.S. states. The map will highlight areas where voter registration interest is highest over a specific date range.
+
+### 1. Load Required Libraries
+
+```{r}
+# Load libraries
+library(curl)
+library(gtrendsR)
+library(dplyr)
+library(leaflet)
+library(leafem)
+library(leaflet.extras)
+library(mapview)
+```
+
+### 2. Pull Google Trends Data
+
+Next, use the `gtrendsR` package to get search trend data for "register to vote" in the United States. We can define a specific time range for when we want to track search interest.
+
+```{r}
+# Pull Google Trends data for "Register to vote"
+trend <- gtrends(keyword = "Register to vote", 
+                 geo = "US", 
+                 time = "2024-09-09 2024-09-11", 
+                 gprop = "web", 
+                 low_search_volume = FALSE, 
+                 onlyInterest = FALSE)
+
+# Extract search interest data by region (states)
+region_trend <- trend$interest_by_region
+```
+
+### 3. Clean and Prepare Data
+
+We'll now modify the dataset for compatibility with geographic data. Specifically, we'll change the column name from "location" (which represents states in the Google Trends data) to "NAME" so that it matches with the state names provided by `tigris`.
+
+```{r}
+# Change "location" to "NAME" to match with geographic data
+names(region_trend)[names(region_trend) == "location"] <- "NAME"
+```
+
+### 4. Get Geographic Data for U.S. States
+
+Using the `tigris` package, we can load geographic boundaries for U.S. states. This will allow us to map the Google Trends data to specific states.
+
+```{r}
+# Get geographic data for U.S. states
+us_geo <- tigris::states(cb = TRUE, resolution = '20m')
+```
+
+### 5. Merge Trends Data with Geographic Data
+
+Now we'll combine the Google Trends data with the geographic data so we can map it.
+
+```{r}
+# Combine geographic data with Google Trends data
+combineddata <- inner_join(us_geo, region_trend, by = c("NAME" = "NAME"))
+```
+
+### 6. Visualize the Data
+
+Finally, we'll use `mapview` to create a visual representation of the search trends across U.S. states. The states will be color-coded based on the search interest for "register to vote."
+
+```{r}
+# Visualize the map with search interest across states
+mapview(combineddata, zcol = "hits")
+
+# Add labels to show the number of hits per state
+mapview(combineddata, zcol = "hits", label = "hits", 
+        layer.name = "Register to vote - hits") |> 
+  addStaticLabels(label = combineddata$hits, textsize = "10px")
+```
+
+## Conclusion
+
+With this map, we can easily see which states are experiencing higher search volumes for "register to vote," offering valuable insights into where voter registration efforts may be more or less active. Tracking such trends can be a powerful tool for political campaigns, non-profits, and civic engagement groups aiming to encourage voter participation in the 2024 election.
+
+Feel free to modify the time range or search terms in the code to tailor it to your analysis needs. Happy coding!
